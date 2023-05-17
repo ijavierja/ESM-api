@@ -36,6 +36,7 @@ describe("upload employee salaries file ", () => {
     await pool.end();
     await process.nextTick(() => {});
   });
+
   test("should insert employee salaries from file while ignoring row with '#'", async () => {
     const res = await request(app)
       .post("/users/upload")
