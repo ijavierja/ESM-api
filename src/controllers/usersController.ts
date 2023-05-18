@@ -113,27 +113,67 @@ const uploadFile = async (
   }
 };
 
-const getUsersParamsSchema = Joi.array()
-.items(
-  Joi.object({
-    id: Joi.string().required(),
-    login: Joi.string().required(),
-    name: Joi.string().required(),
-    salary: Joi.number().required(),
-  })
-)
+const getUsersParamsSchema = Joi.object({
+  minSalary: Joi.number().min(0).required(),
+  maxSalary: Joi.number().greater(Joi.ref("minSalary")).required(),
+  offset: Joi.number().integer().min(0).required(),
+  limit: Joi.number().integer().min(0).required(),
+  sort: Joi.string().allow().required(),
+});
 
 const getUsers = async (
   req: Request,
   res: Response
 ): Promise<Response<any> | undefined> => {
   try {
+    const validationResults = getUsersParamsSchema.validate(req.query);
 
+    if (validationResults.error) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid params",
+        data: validationResults.error,
+      });
+    }
+
+    const { minSalary, maxSalary, offset, limit, sort } =
+      validationResults.value;
+
+    let query = "SELECT * FROM employees WHERE salary between $1 AND $2";
+    let values = [minSalary, maxSalary, limit, offset];
+
+    //validate sort
+    let orderBy;
+    if (sort[0] === " ") {
+      orderBy = "ASC";
+    } else if (sort[0] === "-") {
+      orderBy = "DESC";
+    } else {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid sort. First character should be '+' or '-'",
+        data: validationResults.value,
+      });
+    }
+    // valid sort values
+    const validSort = ["id", "name", "login", "salary"];
+    const sortCol = sort.substring(1).trim();
+    if (!validSort.includes(sortCol)) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid sort column. Only 'id', 'name', 'login', 'salary'.",
+        data: validationResults.value,
+      });
+    }
+
+    query += ` ORDER BY ${sortCol} ${orderBy} LIMIT $3 OFFSET $4`;
+
+    const client = await pool.connect();
+    console.log(query, values);
+    const results = await client.query(query, values);
+    client.release();
     return res.status(200).json({
-      status: "success",
-      message: "OK",
-      data: {},
-      meta: null,
+      results: results.rows,
     });
   } catch (err) {
     return res.status(500).json({
