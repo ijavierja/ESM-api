@@ -113,8 +113,40 @@ const uploadFile = async (
   }
 };
 
+const getUsersParamsSchema = Joi.array()
+.items(
+  Joi.object({
+    id: Joi.string().required(),
+    login: Joi.string().required(),
+    name: Joi.string().required(),
+    salary: Joi.number().required(),
+  })
+)
+
+const getUsers = async (
+  req: Request,
+  res: Response
+): Promise<Response<any> | undefined> => {
+  try {
+
+    return res.status(200).json({
+      status: "success",
+      message: "OK",
+      data: {},
+      meta: null,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      message: "internal server error",
+      data: err,
+    });
+  }
+};
+
 const usersController = {
   uploadFile,
+  getUsers,
 };
 
 export default usersController;
